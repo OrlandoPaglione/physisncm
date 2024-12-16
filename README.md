@@ -14,6 +14,8 @@ PhysisNCM é uma API para classificação de produtos utilizando a Nomenclatura 
   - Caso a descrição seja insuficiente, tenta expandi-la e buscar novamente.
 - **Cache de Consultas**:
   - Implementa cache em memória para evitar consultas repetidas à API.
+- **Autenticação JWT**:
+  - Proteção de endpoints usando tokens JWT gerados pelo servidor.
 
 ---
 
@@ -22,6 +24,7 @@ PhysisNCM é uma API para classificação de produtos utilizando a Nomenclatura 
 - **.NET 6 / ASP.NET Core**: Framework principal para a API.
 - **MemoryCache**: Para caching em memória.
 - **OpenAI API**: Para inteligência artificial.
+- **JWT**: Para autenticação e segurança dos endpoints.
 - **FuzzySharp** (opcional): Para busca baseada em similaridade.
 
 ---
@@ -56,7 +59,29 @@ PhysisNCM é uma API para classificação de produtos utilizando a Nomenclatura 
    }
    ```
 
-4. Adicione sua tabela NCM no diretório `dados` (opcional):
+4. Gere sua chave de API na plataforma OpenAI:
+   - Acesse [OpenAI API Keys](https://platform.openai.com/account/api-keys).
+   - Clique em **"Create new secret key"**.
+   - Copie a chave gerada e cole no arquivo `appsettings.json` ou na variável de ambiente correspondente.
+
+5. Configure a autenticação JWT:
+   - O endpoint `/api/auth/login` permite gerar tokens JWT para autenticação.
+   - Exemplo de request:
+     ```json
+     {
+         "username": "admin",
+         "password": "passowrd"
+     }
+     ```
+   - Exemplo de resposta:
+     ```json
+     {
+         "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+     }
+     ```
+   - Utilize o token gerado para autenticar chamadas nos endpoints protegidos.
+
+6. Adicione sua tabela NCM no diretório `dados` (opcional):
    - Exemplo de tabela:
      ```json
      {
@@ -71,9 +96,9 @@ PhysisNCM é uma API para classificação de produtos utilizando a Nomenclatura 
      }
      ```
 
-5. Execute o projeto:
+7. Execute o projeto:
    ```bash
-   dotnet run --urls "http://localhost:8080"
+   dotnet run --urls "http://localhost:8083"
    ```
 
 ---
@@ -103,8 +128,32 @@ Consulta o código NCM baseado na descrição de um produto.
   }
   ```
 
-#### **Tabela NCM**
-Se a tabela local estiver carregada, o sistema tenta validar o código NCM retornado ou sugere um código alternativo com base na descrição.
+#### **POST /api/auth/login**
+
+Gera um token JWT para autenticação.
+
+- **Exemplo de Request:**
+  ```json
+  {
+      "username": "admin",
+      "password": "password"
+  }
+  ```
+
+- **Exemplo de Resposta:**
+  ```json
+  {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+  ```
+
+#### **Autenticação nos Endpoints Protegidos**
+
+Para usar endpoints protegidos, inclua o token JWT no cabeçalho da requisição:
+
+```http
+Authorization: Bearer <seu-token-jwt>
+```
 
 ---
 
@@ -120,9 +169,11 @@ Se a tabela local estiver carregada, o sistema tenta validar o código NCM retor
 ```plaintext
 PhysisNCM/
 ├── Controllers/
-│   └── NcmController.cs    # Controlador principal da API
+│   ├── NcmController.cs    # Controlador principal da API
+│   └── AuthController.cs   # Controlador para autenticação JWT
 ├── Models/
 │   ├── ProdutoRequest.cs   # Modelo para requisições de produtos
+│   ├── LoginRequest.cs     # Modelo para login
 │   └── NcmEntry.cs         # Modelo para a tabela NCM
 ├── Services/
 │   └── NcmTableLoader.cs   # Serviço para carregar e validar a tabela NCM
@@ -159,5 +210,4 @@ Sinta-se à vontade para abrir issues ou pull requests para melhorar o projeto!
 ## **Licença**
 
 Este projeto está licenciado sob a **MIT License**. Consulte o arquivo `LICENSE` para mais detalhes.
-```
 
