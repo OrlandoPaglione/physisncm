@@ -17,7 +17,7 @@ public class AuthController : ControllerBase
     public IActionResult Login([FromBody] LoginRequest request)
     {
         // Substitua essa lógica por validação real
-        if (request.Username == "admin" && request.Password == "password")
+        if (request.Username == "aedosncm" && request.Password == "1974#2013@casa20801")
         {
             var token = _jwtTokenService.GenerateToken("1974"); // Exemplo de ID do usuário
             return Ok(new { Token = token });

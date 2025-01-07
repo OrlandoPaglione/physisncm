@@ -63,7 +63,7 @@ public static class NcmTableLoader
         }
     }
 
-    public static string SugerirNcmPorDescricao(string descricaoProduto, int limiteSimilaridade = 80)
+    public static string SugerirNcmPorDescricao(string descricaoProduto, string codigolocal, int limiteSimilaridade = 80)
     {
         if (NcmTable == null || !NcmTable.Any())
         {
@@ -87,7 +87,20 @@ public static class NcmTableLoader
         }
 
         // Normalizar a descrição do produto para comparação
-        var descricaoProdutoNormalizada = descricaoProduto.ToLowerInvariant().Trim();
+        var descricaoProdutoNormalizada = RemoverAcentos(descricaoProduto.ToLowerInvariant().Trim());
+
+        // Verificar correspondência por subconjunto
+        var resultadoSubconjunto = ncmFiltrado
+            .FirstOrDefault(entry =>
+                RemoverAcentos(entry.Value.ToLowerInvariant())
+                .Contains(descricaoProdutoNormalizada));
+
+        if (resultadoSubconjunto.Value != null)
+        {
+            Console.WriteLine("Encontrado por subconjunto:");
+            Console.WriteLine($"Codigo: {resultadoSubconjunto.Key}, Descricao: {resultadoSubconjunto.Value}");
+            return resultadoSubconjunto.Key;
+        }
 
         // Avaliar a similaridade global com cada descrição na tabela NCM filtrada
         var resultadoSimilares = ncmFiltrado
@@ -95,15 +108,19 @@ public static class NcmTableLoader
             {
                 Codigo = entry.Key,
                 Descricao = entry.Value,
-                Similaridade = Fuzz.TokenSetRatio(descricaoProdutoNormalizada, entry.Value.ToLowerInvariant())
+                Similaridade = Fuzz.TokenSortRatio(descricaoProdutoNormalizada, RemoverAcentos(entry.Value.ToLowerInvariant())),
+                TamanhoDescricao = entry.Value.Length,
+                PalavrasCoincidentes = descricaoProdutoNormalizada.Split(' ').Count(palavra => RemoverAcentos(entry.Value.ToLowerInvariant()).Contains(palavra))
             })
             .OrderByDescending(x => x.Similaridade)
+            .ThenByDescending(x => x.PalavrasCoincidentes) // Priorizar mais palavras coincidentes
+            .ThenByDescending(x => x.TamanhoDescricao)    // Priorizar descrições mais completas
             .ToList();
 
         // Log para depuração
         foreach (var resultado in resultadoSimilares)
         {
-            Console.WriteLine($"Codigo: {resultado.Codigo}, Descricao: {resultado.Descricao}, Similaridade: {resultado.Similaridade}");
+            Console.WriteLine($"Codigo: {resultado.Codigo}, Descricao: {resultado.Descricao}, Similaridade: {resultado.Similaridade}, PalavrasCoincidentes: {resultado.PalavrasCoincidentes}, Tamanho: {resultado.TamanhoDescricao}");
         }
 
         // Filtrar resultados acima do limite de similaridade
@@ -111,15 +128,61 @@ public static class NcmTableLoader
             .Where(x => x.Similaridade >= limiteSimilaridade)
             .ToList();
 
-        if (!resultadoSimilares.Any())
+        /*if (!resultadoSimilares.Any())
         {
             Console.WriteLine("Nenhum resultado encontrado com similaridade acima do limite.");
             return null;
+        }*/
+        if (!resultadoSimilares.Any())
+        {
+            Console.WriteLine("Nenhum resultado encontrado com similaridade acima do limite.");
+
+            // Procurar pelo código mais próximo formatado
+            var closestCode = ncmFiltrado
+                .Select(entry => new
+                {
+                    Codigo = entry.Key,
+                    Similaridade = Fuzz.Ratio(entry.Key, codigolocal) // Baseado no código de entrada
+                })
+                .OrderByDescending(x => x.Similaridade)
+                .FirstOrDefault();
+
+            if (closestCode != null)
+            {
+                Console.WriteLine($"Código formatado mais próximo encontrado: {closestCode.Codigo}");
+                return closestCode.Codigo;
+            }
+
+            return null;
         }
+
 
         // Retorna o código mais similar
         return resultadoSimilares.FirstOrDefault()?.Codigo;
     }
+
+
+    // Função auxiliar para remover acentos
+    private static string RemoverAcentos(string texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto))
+            return texto;
+
+        var normalizedString = texto.Normalize(System.Text.NormalizationForm.FormD);
+        var stringBuilder = new System.Text.StringBuilder();
+
+        foreach (var c in normalizedString)
+        {
+            var unicodeCategory = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c);
+            if (unicodeCategory != System.Globalization.UnicodeCategory.NonSpacingMark)
+            {
+                stringBuilder.Append(c);
+            }
+        }
+
+        return stringBuilder.ToString().Normalize(System.Text.NormalizationForm.FormC);
+    }
+
 
 
 

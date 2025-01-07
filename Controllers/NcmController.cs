@@ -64,7 +64,7 @@ public class NcmController : ControllerBase
 
                     // Armazenar no cache
                     // _cache.Set(cacheKey, ncmResposta, TimeSpan.FromMinutes(10));
-                    _cache.Set(cacheKey, ncmResposta, TimeSpan.FromHours(2));
+                   
 
                     return Ok(new
                     {
@@ -80,7 +80,7 @@ public class NcmController : ControllerBase
             var ncmCodigoFinal = ExtrairCodigoNcm(ncmResposta);
             var ncmCodigo1 = ExtrairCodigoNcm(ncmResposta);
             string entrada = ncmResposta;
-            string chave = "A subcategoria do produto é ";
+            string chave = "A subcategoria do produto é:";
 
             string resultado = null;
 
@@ -95,11 +95,23 @@ public class NcmController : ControllerBase
 
             var ncmValidofinal = ValidarNcm(ncmCodigoFinal, resultado);
 
+            //"Código NCM inválido ou obsoleto."
             // Armazenar no cache
-            _cache.Set(cacheKey, ncmResposta, TimeSpan.FromHours(4));
+
+            /*   if (ncmValidofinal== "Código NCM inválido ou obsoleto.")
+               {
+                   ncmResposta = await ExpandirDescricao(request.Descricao);
+                    ncmCodigoFinal = ExtrairCodigoNcm(ncmResposta);
+                    ncmCodigo1 = ExtrairCodigoNcm(ncmResposta);
+               }
+              */
+            
             string aproximado = ncmValidofinal != ncmCodigo1
                                 ? "Sim, a classificação foi aproximada pois o código original não é mais válido."
                                 : "Não, a classificação é precisa.";
+
+            _cache.Set(cacheKey, ncmResposta, TimeSpan.FromHours(4));
+
             return Ok(new
             {
                 descricao = request.Descricao,
@@ -108,11 +120,11 @@ public class NcmController : ControllerBase
                 aproximado = aproximado
 
             });
+            
+
+            
 
 
-
-
-           
         }
         catch (HttpRequestException ex)
         {
@@ -125,16 +137,19 @@ public class NcmController : ControllerBase
 private async Task<string> ConsultarNcmNaIA(string descricaoProduto)
     {
         var client = _httpClientFactory.CreateClient();
-        client.DefaultRequestHeaders.Add("Authorization", "Bearer sk-proj-JoA"); //chave IA 
+        client.DefaultRequestHeaders.Add("Authorization", "Bearer sk-proj-ZrT");
 
         var requestContent = new
         {
-            model = "gpt-3.5-turbo", // gpt-3.5-turbo ou "gpt-4"
+            model = "gpt-4-turbo", // gpt-3.5-turbo ou "gpt-4" "gpt-4-turbo"
             temperature = 0, // Menos aleatoriedade, respostas mais consistentes para não ter diferença de ambientes
             messages = new[]
             {
-                new { role = "system", content = "Você é um assistente especializado em buscar códigos NCM e categoria de produtos." },
-                new { role = "user", content = $"Descrição do produto: {descricaoProduto}  Qual é o código NCM mais adequado e informe a  Subcategoria do produto como ultima informação na resposta, e sempre respondendo desta forma A subcategoria do produto é" }
+                  new { role = "system", content = "Você é um assistente especializado em identificar códigos NCM e subcategorias de produtos. Sempre forneça o código NCM mais adequado com base na descrição do produto, considerando os regulamentos fiscais e regras de classificação. Responda apenas com o código mais provável e justifique a escolha de forma clara e objetiva." },
+                  new { role = "user", content = $"Descrição do produto: {descricaoProduto}. Qual é o código NCM mais adequado? Forneça a subcategoria como última informação da resposta, e finalize sempre com 'A subcategoria do produto é:'" }
+               // new { role = "system", content = "Você é um assistente especializado em buscar códigos NCM e categoria de produtos." },
+               // new { role = "user", content = $"Descrição do produto: {descricaoProduto}  Qual é o código NCM mais adequado e informe a  Subcategoria do produto como ultima informação na resposta, e sempre respondendo desta forma A subcategoria do produto é" }
+
             }
         };
 
@@ -164,13 +179,15 @@ private async Task<string> ConsultarNcmNaIA(string descricaoProduto)
     private async Task<string> ExpandirDescricao(string descricaoProduto)
     {
         var client = _httpClientFactory.CreateClient();
-         client.DefaultRequestHeaders.Add("Authorization", "Bearer sk-proj-JoA"); //chave IA 
+        client.DefaultRequestHeaders.Add("Authorization", "Bearer sk-proj-");
 
         var requestContent = new
         {
-            model = "gpt-3.5-turbo", //gpt-3.5-turbo ou "gpt-4"
+            model = "gpt-4-turbo", // gpt-3.5-turbo ou "gpt-4" "gpt-4-turbo"
             messages = new[]
             {
+                 // new { role = "system", content = "Você é um assistente especializado em identificar códigos NCM e subcategorias de produtos. Sempre forneça o código NCM mais adequado com base na descrição do produto, considerando os regulamentos fiscais e regras de classificação. Responda apenas com o código mais provável e justifique a escolha de forma clara e objetiva." },
+                //  new { role = "user", content = $"Descrição do produto: {descricaoProduto}. Qual é o código NCM mais adequado? Forneça a subcategoria como última informação da resposta, e finalize sempre com 'A subcategoria do produto é:'" }
                 new { role = "system", content = "Você é um assistente especializado em corrigir e expandir descrições de produtos para que possam ser usados em classificações NCM." },
                 new { role = "user", content = $"Descrição do produto: {descricaoProduto} Corrija a descrição para que fique clara." }
             }
@@ -264,7 +281,7 @@ private async Task<string> ConsultarNcmNaIA(string descricaoProduto)
         /// vamos tentar validar pela descricao o codigo na tabela 
         /// orlando 13/12/2024.
         // return "Código NCM inválido ou obsoleto.";
-        var ncmSugeridoPorDescricao = NcmTableLoader.SugerirNcmPorDescricao(descricaoProduto,85);
+        var ncmSugeridoPorDescricao = NcmTableLoader.SugerirNcmPorDescricao(descricaoProduto, ncmSugerido, 85);
         if (!string.IsNullOrEmpty(ncmSugeridoPorDescricao))
         {
             return ncmSugeridoPorDescricao; // Retorna o código sugerido pela descrição
