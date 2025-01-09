@@ -1,5 +1,8 @@
-# **PhysisNCM**
 
+
+![resultado_da_consulta_ncm](https://github.com/user-attachments/assets/f81a01ab-df51-4138-9dc0-92345ccf3d3d)
+<br> **Exemplo de retorno da api** <br>
+# **PhysisNCM**
 PhysisNCM é uma API para classificação de produtos utilizando a Nomenclatura Comum do Mercosul (NCM). A API permite consultar o código NCM com base em descrições de produtos, utilizando inteligência artificial para análise e, opcionalmente, validação dos códigos por meio de uma tabela NCM local.
 
 ---
